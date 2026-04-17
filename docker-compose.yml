@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────
+#  SERVICIOS
+# ─────────────────────────────────────────────
+services:
+
+  # ── MongoDB ───────────────────────────────
+  mongodb:
+    image: mongo:8.2-noble
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+      - ./mongo/mongod.conf:/etc/mongod.conf:ro
+    networks:
+      - mongo_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Mongo Express (UI Web), preferir usarlo externo con NPM, la imagen esta obsoleta ─────────────────
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    profiles:
+      - ui
+    container_name: mongo-express
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_PASSWORD}
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    ports:
+      - "${ME_PORT:-8081}:8081"
+    networks:
+      - mongo_network
+
+# ─────────────────────────────────────────────
+#  VOLÚMENES
+# ─────────────────────────────────────────────
+volumes:
+  mongo_data:
+    name: mongodb_data
+    driver: local
+  mongo_config:
+    name: mongodb_config
+    driver: local
+
+# ─────────────────────────────────────────────
+#  REDES
+# ─────────────────────────────────────────────
+networks:
+  mongo_network:
+    name: mongodb_network
+    driver: bridge

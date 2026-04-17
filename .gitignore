@@ -1,0 +1,13 @@
+# Variables de entorno con credenciales reales
+.env
+
+# Datos y backups locales
+backups/*.gz
+data/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
